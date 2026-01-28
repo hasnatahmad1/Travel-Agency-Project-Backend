@@ -8,7 +8,7 @@ from api.views import (
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),  # ✅ Django admin panel
 
     # Authentication
     path('register/', RegisterView.as_view(), name='register'),
@@ -19,11 +19,11 @@ urlpatterns = [
     path('vouchers/', VoucherListCreateView.as_view(), name='voucher-list-create'),
     path('vouchers/<int:pk>/', VoucherDetailView.as_view(), name='voucher-detail'),
 
-    # Admin specific endpoints
-    path('admin/vouchers/', AdminVoucherListView.as_view(),
-         name='admin-voucher-list'),
-    path('admin/vouchers/<int:pk>/status/',
+    # ✅ Admin specific endpoints
+    path('api/admin/vouchers/', AdminVoucherListView.as_view(),
+         name='admin-voucher-list'),  # Changed
+    path('api/admin/vouchers/<int:pk>/status/',
          VoucherStatusUpdateView.as_view(), name='voucher-status-update'),
-    path('admin/vouchers/<int:voucher_id>/mautamers/',
+    path('api/admin/vouchers/<int:voucher_id>/mautamers/',
          MautamerBulkUploadView.as_view(), name='mautamer-bulk-upload'),
 ]
