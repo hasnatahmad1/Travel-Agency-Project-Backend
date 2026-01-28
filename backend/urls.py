@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.urls import path
 from api.views import (
     RegisterView, LoginView,
-    VoucherListCreateView, VoucherDetailView, VoucherStatusUpdateView
+    VoucherListCreateView, VoucherDetailView, VoucherStatusUpdateView,
+    MautamerBulkUploadView, AdminVoucherListView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -17,6 +18,12 @@ urlpatterns = [
     # Voucher CRUD
     path('vouchers/', VoucherListCreateView.as_view(), name='voucher-list-create'),
     path('vouchers/<int:pk>/', VoucherDetailView.as_view(), name='voucher-detail'),
-    path('vouchers/<int:pk>/status/', VoucherStatusUpdateView.as_view(),
-         name='voucher-status-update'),
+
+    # Admin specific endpoints
+    path('admin/vouchers/', AdminVoucherListView.as_view(),
+         name='admin-voucher-list'),
+    path('admin/vouchers/<int:pk>/status/',
+         VoucherStatusUpdateView.as_view(), name='voucher-status-update'),
+    path('admin/vouchers/<int:voucher_id>/mautamers/',
+         MautamerBulkUploadView.as_view(), name='mautamer-bulk-upload'),
 ]
