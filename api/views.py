@@ -33,7 +33,6 @@ class LoginView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
 
-# Voucher CRUD Views
 class VoucherListCreateView(ListCreateAPIView):
     """
     GET: List all vouchers for authenticated user
@@ -49,9 +48,9 @@ class VoucherListCreateView(ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
-            # Admin can see all vouchers
+
             return Voucher.objects.all()
-        # Normal user can only see their own vouchers
+
         return Voucher.objects.filter(user=user)
 
     def perform_create(self, serializer):
@@ -136,7 +135,6 @@ class AdminVoucherListView(APIView):
         return Response(vouchers_data)
 
 
-# Mautamer Views
 class AgentMautamerListView(APIView):
     """
     Agent apne mautamers ki list dekhne ke liye
@@ -163,7 +161,6 @@ class AgentCreateView(APIView):
         if serializer.is_valid():
             user = serializer.save()
 
-            # Get created mautamers count
             mautamers_count = Mautamer.objects.filter(user=user).count()
 
             return Response(
@@ -225,14 +222,11 @@ class AgentMautamerUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Option to replace or append
         replace_existing = request.data.get('replace_existing', False)
 
         if replace_existing:
-            # Delete existing mautamers for this agent
             agent.mautamers.all().delete()
 
-        # Create new mautamers
         created_count = 0
         skipped_count = 0
 
@@ -241,7 +235,6 @@ class AgentMautamerUploadView(APIView):
                 skipped_count += 1
                 continue
 
-            # Check for duplicates
             if Mautamer.objects.filter(
                 user=agent,
                 passport=mautamer_data['passport']
