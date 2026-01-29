@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Voucher, FlightInformation, Mautamer, Hotel, Transportation
+from .models import Voucher, FlightInformation, Mautamer, VoucherMautamer, Hotel, Transportation
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -29,6 +29,29 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
+# Mautamer Serializers
+class MautamerSerializer(serializers.ModelSerializer):
+    """Agent ke mautamers ki list dikhane ke liye"""
+    class Meta:
+        model = Mautamer
+        fields = ['id', 'pax_name', 'passport', 'created_at']
+        read_only_fields = ['created_at']
+
+
+class VoucherMautamerSerializer(serializers.ModelSerializer):
+    """Voucher mein selected mautamers ko show karne ke liye"""
+    pax_name = serializers.CharField(
+        source='mautamer.pax_name', read_only=True)
+    passport = serializers.CharField(
+        source='mautamer.passport', read_only=True)
+    mautamer_id = serializers.IntegerField(
+        source='mautamer.id', read_only=True)
+
+    class Meta:
+        model = VoucherMautamer
+        fields = ['id', 'mautamer_id', 'pax_name', 'passport']
+
+
 # Nested Serializers for Voucher
 class FlightInformationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,12 +63,6 @@ class FlightInformationSerializer(serializers.ModelSerializer):
             'return_flight', 'return_sector_from', 'return_sector_to', 'return_pnr',
             'shirka', 'iata', 'service_no'
         ]
-
-
-class MautamerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Mautamer
-        fields = ['id', 'pax_name', 'passport']
 
 
 class HotelSerializer(serializers.ModelSerializer):
@@ -78,7 +95,14 @@ class VoucherListSerializer(serializers.ModelSerializer):
 class VoucherDetailSerializer(serializers.ModelSerializer):
     """For detailed voucher view with all nested data"""
     flight_info = FlightInformationSerializer(required=False)
-    mautamers = MautamerSerializer(many=True, required=False)
+    mautamers = VoucherMautamerSerializer(
+        source='voucher_mautamers', many=True, read_only=True)
+    mautamer_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        help_text="Selected mautamer IDs"
+    )
     hotels = HotelSerializer(many=True, required=False)
     transportations = TransportationSerializer(many=True, required=False)
     user = serializers.StringRelatedField(read_only=True)
@@ -87,14 +111,14 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
         model = Voucher
         fields = [
             'id', 'vNo', 'agentName', 'status', 'groupName', 'user',
-            'flight_info', 'mautamers', 'hotels', 'transportations',
+            'flight_info', 'mautamers', 'mautamer_ids', 'hotels', 'transportations',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['user', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         flight_info_data = validated_data.pop('flight_info', None)
-        mautamers_data = validated_data.pop('mautamers', [])
+        mautamer_ids = validated_data.pop('mautamer_ids', [])
         hotels_data = validated_data.pop('hotels', [])
         transportations_data = validated_data.pop('transportations', [])
 
@@ -106,9 +130,15 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
             FlightInformation.objects.create(
                 voucher=voucher, **flight_info_data)
 
-        # Create mautamers
-        for mautamer_data in mautamers_data:
-            Mautamer.objects.create(voucher=voucher, **mautamer_data)
+        # Link selected mautamers
+        user = validated_data.get('user')
+        for mautamer_id in mautamer_ids:
+            try:
+                mautamer = Mautamer.objects.get(id=mautamer_id, user=user)
+                VoucherMautamer.objects.create(
+                    voucher=voucher, mautamer=mautamer)
+            except Mautamer.DoesNotExist:
+                pass  # Skip invalid mautamer IDs
 
         # Create hotels
         for hotel_data in hotels_data:
@@ -123,7 +153,7 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         flight_info_data = validated_data.pop('flight_info', None)
-        mautamers_data = validated_data.pop('mautamers', None)
+        mautamer_ids = validated_data.pop('mautamer_ids', None)
         hotels_data = validated_data.pop('hotels', None)
         transportations_data = validated_data.pop('transportations', None)
 
@@ -143,11 +173,17 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
                 defaults=flight_info_data
             )
 
-        # Update mautamers (delete old and create new)
-        if mautamers_data is not None:
-            instance.mautamers.all().delete()
-            for mautamer_data in mautamers_data:
-                Mautamer.objects.create(voucher=instance, **mautamer_data)
+        # Update mautamers if provided
+        if mautamer_ids is not None:
+            instance.voucher_mautamers.all().delete()
+            for mautamer_id in mautamer_ids:
+                try:
+                    mautamer = Mautamer.objects.get(
+                        id=mautamer_id, user=instance.user)
+                    VoucherMautamer.objects.create(
+                        voucher=instance, mautamer=mautamer)
+                except Mautamer.DoesNotExist:
+                    pass
 
         # Update hotels
         if hotels_data is not None:
@@ -170,3 +206,38 @@ class VoucherStatusUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Voucher
         fields = ['status']
+
+
+class AgentCreateSerializer(serializers.ModelSerializer):
+    """Admin agent create karne ke liye with mautamers"""
+    password = serializers.CharField(write_only=True)
+    mautamers = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        required=False,
+        help_text="List of mautamers to upload for this agent"
+    )
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'password', 'mautamers']
+
+    def create(self, validated_data):
+        mautamers_data = validated_data.pop('mautamers', [])
+
+        # Create agent user
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password']
+        )
+
+        # Create mautamers for this agent
+        for mautamer_data in mautamers_data:
+            if 'pax_name' in mautamer_data and 'passport' in mautamer_data:
+                Mautamer.objects.create(
+                    user=user,
+                    pax_name=mautamer_data['pax_name'],
+                    passport=mautamer_data['passport']
+                )
+
+        return user

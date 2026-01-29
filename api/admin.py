@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
-from .models import Voucher, FlightInformation, Mautamer, Hotel, Transportation
+from .models import Voucher, FlightInformation, Mautamer, VoucherMautamer, Hotel, Transportation
 
 
 class FlightInformationInline(admin.StackedInline):
@@ -9,9 +9,10 @@ class FlightInformationInline(admin.StackedInline):
     max_num = 1
 
 
-class MautamerInline(admin.TabularInline):
-    model = Mautamer
+class VoucherMautamerInline(admin.TabularInline):
+    model = VoucherMautamer
     extra = 1
+    autocomplete_fields = ['mautamer']
 
 
 class HotelInline(admin.TabularInline):
@@ -29,7 +30,7 @@ class VoucherAdmin(admin.ModelAdmin):
     list_display = ['vNo', 'agentName', 'status', 'user', 'created_at']
     list_filter = ['status', 'created_at']
     search_fields = ['vNo', 'agentName', 'user__username']
-    inlines = [FlightInformationInline, MautamerInline,
+    inlines = [FlightInformationInline, VoucherMautamerInline,
                HotelInline, TransportationInline]
 
 
@@ -42,8 +43,22 @@ class FlightInformationAdmin(admin.ModelAdmin):
 
 @admin.register(Mautamer)
 class MautamerAdmin(admin.ModelAdmin):
-    list_display = ['pax_name', 'passport', 'voucher']
-    search_fields = ['pax_name', 'passport', 'voucher__vNo']
+    list_display = ['pax_name', 'passport', 'user', 'created_at']
+    list_filter = ['user', 'created_at']
+    search_fields = ['pax_name', 'passport', 'user__username']
+    ordering = ['user', 'pax_name']
+
+
+@admin.register(VoucherMautamer)
+class VoucherMautamerAdmin(admin.ModelAdmin):
+    list_display = ['voucher', 'mautamer', 'get_agent']
+    list_filter = ['voucher__user']
+    search_fields = ['voucher__vNo',
+                     'mautamer__pax_name', 'mautamer__passport']
+
+    def get_agent(self, obj):
+        return obj.voucher.user.username
+    get_agent.short_description = 'Agent'
 
 
 @admin.register(Hotel)
