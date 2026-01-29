@@ -3,15 +3,10 @@ from django.contrib.auth.models import User
 
 
 class Mautamer(models.Model):
-    """
-    Mautamer is now linked to User (Agent) instead of Voucher
-    Admin uploads mautamers for each agent
-    Agent selects from their mautamers when creating voucher
-    """
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='mautamers',
         help_text="Agent jiske liye ye mautamer hai",
-        null=True,  # ✅ Migration ke liye temporary
+        null=True,
         blank=True
     )
     pax_name = models.CharField(max_length=200)
@@ -23,8 +18,6 @@ class Mautamer(models.Model):
 
     class Meta:
         ordering = ['pax_name']
-        # Temporarily commented for migration
-        # unique_together = ['user', 'passport']
 
 
 class Voucher(models.Model):
@@ -73,7 +66,6 @@ class FlightInformation(models.Model):
     voucher = models.OneToOneField(
         Voucher, on_delete=models.CASCADE, related_name='flight_info')
 
-    # Departure Information
     departure_date = models.DateField()
     arrival_date = models.DateField()
     sector_from = models.CharField(max_length=100, blank=True, default='')
@@ -87,7 +79,6 @@ class FlightInformation(models.Model):
     nights = models.IntegerField(
         help_text="Departure - Arrival nights", default=0)
 
-    # Return Information
     return_date = models.DateField()
     return_time = models.TimeField()
     return_flight_no = models.CharField(max_length=50, blank=True, default='')
@@ -97,7 +88,6 @@ class FlightInformation(models.Model):
     return_sector_to = models.CharField(max_length=100, blank=True, default='')
     return_pnr = models.CharField(max_length=50, blank=True, default='')
 
-    # Additional Information
     shirka = models.CharField(max_length=200, blank=True, default='')
     iata = models.CharField(max_length=50, blank=True, default='')
     service_no = models.CharField(max_length=50, blank=True, default='')
