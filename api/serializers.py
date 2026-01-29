@@ -29,7 +29,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
-# Mautamer Serializers
 class MautamerSerializer(serializers.ModelSerializer):
     """Agent ke mautamers ki list dikhane ke liye"""
     class Meta:
@@ -52,7 +51,6 @@ class VoucherMautamerSerializer(serializers.ModelSerializer):
         fields = ['id', 'mautamer_id', 'pax_name', 'passport']
 
 
-# Nested Serializers for Voucher
 class FlightInformationSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlightInformation
@@ -80,7 +78,6 @@ class TransportationSerializer(serializers.ModelSerializer):
         fields = ['id', 'date', 'from_location', 'type_of_transfer']
 
 
-# Main Voucher Serializers
 class VoucherListSerializer(serializers.ModelSerializer):
     """For listing vouchers - minimal data"""
     user = serializers.StringRelatedField(read_only=True)
@@ -122,15 +119,12 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
         hotels_data = validated_data.pop('hotels', [])
         transportations_data = validated_data.pop('transportations', [])
 
-        # Create voucher
         voucher = Voucher.objects.create(**validated_data)
 
-        # Create flight info if provided
         if flight_info_data:
             FlightInformation.objects.create(
                 voucher=voucher, **flight_info_data)
 
-        # Link selected mautamers
         user = validated_data.get('user')
         for mautamer_id in mautamer_ids:
             try:
@@ -138,13 +132,11 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
                 VoucherMautamer.objects.create(
                     voucher=voucher, mautamer=mautamer)
             except Mautamer.DoesNotExist:
-                pass  # Skip invalid mautamer IDs
+                pass
 
-        # Create hotels
         for hotel_data in hotels_data:
             Hotel.objects.create(voucher=voucher, **hotel_data)
 
-        # Create transportations
         for transportation_data in transportations_data:
             Transportation.objects.create(
                 voucher=voucher, **transportation_data)
@@ -157,7 +149,6 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
         hotels_data = validated_data.pop('hotels', None)
         transportations_data = validated_data.pop('transportations', None)
 
-        # Update voucher fields
         instance.vNo = validated_data.get('vNo', instance.vNo)
         instance.agentName = validated_data.get(
             'agentName', instance.agentName)
@@ -166,14 +157,12 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
             'groupName', instance.groupName)
         instance.save()
 
-        # Update or create flight info
         if flight_info_data:
             FlightInformation.objects.update_or_create(
                 voucher=instance,
                 defaults=flight_info_data
             )
 
-        # Update mautamers if provided
         if mautamer_ids is not None:
             instance.voucher_mautamers.all().delete()
             for mautamer_id in mautamer_ids:
@@ -185,13 +174,11 @@ class VoucherDetailSerializer(serializers.ModelSerializer):
                 except Mautamer.DoesNotExist:
                     pass
 
-        # Update hotels
         if hotels_data is not None:
             instance.hotels.all().delete()
             for hotel_data in hotels_data:
                 Hotel.objects.create(voucher=instance, **hotel_data)
 
-        # Update transportations
         if transportations_data is not None:
             instance.transportations.all().delete()
             for transportation_data in transportations_data:
@@ -225,13 +212,11 @@ class AgentCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         mautamers_data = validated_data.pop('mautamers', [])
 
-        # Create agent user
         user = User.objects.create_user(
             username=validated_data['username'],
             password=validated_data['password']
         )
 
-        # Create mautamers for this agent
         for mautamer_data in mautamers_data:
             if 'pax_name' in mautamer_data and 'passport' in mautamer_data:
                 Mautamer.objects.create(
